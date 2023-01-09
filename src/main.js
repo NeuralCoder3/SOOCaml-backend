@@ -255,6 +255,15 @@ server.get('/webworker.js', function (request, response, next) {
     }
 });
 
+server.get('/toplevel.js', function (request, response, next) {
+    if (config.serveFrontend) {
+        response.sendFile(path.resolve(config.frontendPath + '/toplevel.js'));
+    } else {
+        next();
+        return;
+    }
+});
+
 server.get('/logo.png', function (request, response, next) {
     if (config.serveFrontend) {
         response.sendFile(path.resolve(config.frontendPath + '/logo.png'));
@@ -292,5 +301,5 @@ server.use(function (request, response, next) {
 });
 
 server.listen(config.port, function () {
-    console.log('==== Server started ====');
+    console.log('==== Server started ==== Port '+config.port);
 });
