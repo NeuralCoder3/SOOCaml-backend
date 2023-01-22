@@ -11,6 +11,7 @@ const crypto = require('crypto'); // Needed for hashing the sent code
 const bodyParser = require('body-parser');
 const RateLimit = require('express-rate-limit'); // This module helps limiting excessive access to the APIs
 const config = require(__dirname+'/../config.js');
+// const QRCode = require('../SOSML-frontend/frontend/src/components/QRCode');
 
 var limiter = new RateLimit(config.shareLimits);
 
@@ -212,7 +213,7 @@ server.get('/api/code/:code',
             const code = request.params.code;
             console.log('Trying to read file ' + request.params.code);
             if (/^[\d\w](\/[\d\w\%]+|.[\d\w\%]+|[\d\w\%])*$/g.test(code)) {
-                outputFile(config.examplePath + code + ".sml", response);
+                outputFile(config.examplePath + code, response);
             } else {
                 response.sendStatus(400);
             }
