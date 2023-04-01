@@ -212,7 +212,7 @@ server.get('/api/code/:code',
             const code = request.params.code;
             console.log('Trying to read file ' + request.params.code);
             if (/^[\d\w](\/[\d\w\%]+|.[\d\w\%]+|[\d\w\%])*$/g.test(code)) {
-                outputFile(config.examplePath + code + ".sml", response);
+                outputFile(config.examplePath + code, response);
             } else {
                 response.sendStatus(400);
             }
