@@ -1,5 +1,7 @@
 'use strict';
 
+const http = require('http');
+const https = require('https');
 const express = require('express');
 const expressStaticGzip = require('express-static-gzip');
 const bodyparser = require('body-parser');
@@ -10,7 +12,7 @@ const fs = require('fs'); // Needed to save and read files from the system
 const crypto = require('crypto'); // Needed for hashing the sent code
 const bodyParser = require('body-parser');
 const RateLimit = require('express-rate-limit'); // This module helps limiting excessive access to the APIs
-const config = require(__dirname+'/../config.js');
+const config = require(__dirname + '/../config.js');
 // const QRCode = require('../SOSML-frontend/frontend/src/components/QRCode');
 
 var limiter = new RateLimit(config.shareLimits);
@@ -48,7 +50,7 @@ function outputFile(name, response) {
 
 function listDir(dir, prefix, response) {
     var results = [];
-    fs.readdir(dir,  function (err, items) {
+    fs.readdir(dir, function (err, items) {
         if (err) {
             response(err);
         }
@@ -56,11 +58,11 @@ function listDir(dir, prefix, response) {
         if (!pending) {
             response(null, results);
         }
-        items.forEach(function(file) {
+        items.forEach(function (file) {
             file = path.resolve(dir, file);
-            fs.stat(file, function(err, stat) {
+            fs.stat(file, function (err, stat) {
                 if (stat && stat.isDirectory()) {
-                    listDir(file, prefix, function(err, res) {
+                    listDir(file, prefix, function (err, res) {
                         results = results.concat(res);
                         if (!--pending) {
                             response(null, results);
@@ -175,13 +177,13 @@ server.get('/api/list/',
     function (request, response, next) {
         if (config.serveExamples) {
             listDir(config.examplePath, path.resolve(config.examplePath, '.') + '/',
-                function(err, results) {
-                if (err) {
-                    console.log(err);
-                }
-                response.set('Content-Type', 'text/json');
-                response.end(JSON.stringify({codes: results}));
-            });
+                function (err, results) {
+                    if (err) {
+                        console.log(err);
+                    }
+                    response.set('Content-Type', 'text/json');
+                    response.end(JSON.stringify({ codes: results }));
+                });
         } else {
             next();
             return;
@@ -193,13 +195,13 @@ server.get('/api/wishlist/',
     function (request, response, next) {
         if (config.serveWishExamples) {
             listDir(config.wishPath, path.resolve(config.wishPath, '.') + '/',
-                function(err, results) {
-                if (err) {
-                    console.log(err);
-                }
-                response.set('Content-Type', 'text/json');
-                response.end(JSON.stringify({codes: results}));
-            });
+                function (err, results) {
+                    if (err) {
+                        console.log(err);
+                    }
+                    response.set('Content-Type', 'text/json');
+                    response.end(JSON.stringify({ codes: results }));
+                });
         } else {
             next();
             return;
@@ -301,6 +303,29 @@ server.use(function (request, response, next) {
     }
 });
 
-server.listen(config.port, function () {
-    console.log('==== Server started ==== Port '+config.port);
+
+const domain = 'v2202201167307177506.ultrasrv.de';
+const privateKey = fs.readFileSync(`/etc/letsencrypt/live/${domain}/privkey.pem`, 'utf8');
+const certificate = fs.readFileSync(`/etc/letsencrypt/live/${domain}/cert.pem`, 'utf8');
+const ca = fs.readFileSync(`/etc/letsencrypt/live/${domain}/chain.pem`, 'utf8');
+
+const credentials = {
+    key: privateKey,
+    cert: certificate,
+    ca: ca
+};
+
+
+// server.listen(config.port, function () {
+//     console.log('==== Server started ==== Port ' + config.port);
+// });
+const httpServer = http.createServer(server);
+const httpsServer = https.createServer(credentials, server);
+
+httpServer.listen(80, () => {
+    console.log('HTTP Server running on port 80');
+});
+
+httpsServer.listen(443, () => {
+    console.log('HTTPS Server running on port 443');
 });
