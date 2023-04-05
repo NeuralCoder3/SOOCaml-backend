@@ -21,7 +21,8 @@ var limiter = new RateLimit(config.shareLimits);
 const server = express();
 server.enable('trust proxy');
 server.use(cors());
-server.use(helmet())
+// TODO: reenable helmet but allows prog2.de, uni saarland domains
+// server.use(helmet())
 server.use(compression())
 server.use(bodyParser.json({ limit: '5mb' }));
 server.use('/static/', expressStaticGzip('SOSML-frontend/frontend/build/static', {
