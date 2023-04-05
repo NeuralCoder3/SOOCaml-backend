@@ -13,12 +13,14 @@ const crypto = require('crypto'); // Needed for hashing the sent code
 const bodyParser = require('body-parser');
 const RateLimit = require('express-rate-limit'); // This module helps limiting excessive access to the APIs
 const config = require(__dirname + '/../config.js');
+const cors = require('cors');
 // const QRCode = require('../SOSML-frontend/frontend/src/components/QRCode');
 
 var limiter = new RateLimit(config.shareLimits);
 
 const server = express();
 server.enable('trust proxy');
+server.use(cors());
 server.use(helmet())
 server.use(compression())
 server.use(bodyParser.json({ limit: '5mb' }));
@@ -242,6 +244,7 @@ server.get('/api/wish/:code',
         }
     }
 );
+
 
 server.use('/api',
     function (request, response) {
