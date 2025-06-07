@@ -19,6 +19,17 @@ const cors = require('cors');
 var limiter = new RateLimit(config.shareLimits);
 
 const server = express();
+
+const port = process.env.PORT || 3033;
+server.set('port', port);
+
+const basepage = process.env.BASEPAGE || "";
+
+if (basepage !== "") {
+    console.log("Warning: Using non-default BASEPAGE. Make sure that urls in the static files are adjusted to contain the base page, e.g., by the CI deploy.sh script!")
+}
+
+
 server.enable('trust proxy');
 server.use(cors());
 // TODO: reenable helmet but allows prog2.de, uni saarland domains
@@ -178,7 +189,9 @@ server.get('/api/wishare/:code',
 
 server.get('/api/list/',
     function (request, response, next) {
+        console.log("Requesting list of examples");
         if (config.serveExamples) {
+            console.log("List examples");
             listDir(config.examplePath, path.resolve(config.examplePath, '.') + '/',
                 function (err, results) {
                     if (err) {
@@ -253,45 +266,79 @@ server.use('/api',
     }
 )
 
-server.get('/webworker.js', function (request, response, next) {
-    if (config.serveFrontend) {
-        response.sendFile(path.resolve(config.frontendPath + '/webworker.js'));
-    } else {
-        next();
-        return;
-    }
-});
+// const static_files = [
+//     'service-worker.js',
+//     'webworker.js',
+//     'manifest.json',
+//     'toplevel.js',
+//     'logo.png',
+//     'asset-manifest.json',
+//     'icon256.png',
+//     'icon512.png',
+//     'iconios.png',
+//     'maskable_icon.png',
+//     'favicon.png'
+// ];
 
-server.get('/toplevel.js', function (request, response, next) {
-    if (config.serveFrontend) {
-        response.sendFile(path.resolve(config.frontendPath + '/toplevel.js'));
-    } else {
-        next();
-        return;
-    }
-});
+// static_files.forEach( (file_path) => {
+//     server.get('/' + file_path, function (request, response, next) {
+//         if (config.serveFrontend) {
+//         response.sendFile(path.resolve(config.frontendPath + '/' + file_path));
+//     } else {
+//         next();
+//         return;
+//     }
+// });
+// });
 
-server.get('/logo.png', function (request, response, next) {
-    if (config.serveFrontend) {
-        response.sendFile(path.resolve(config.frontendPath + '/logo.png'));
-    } else {
-        next();
-        return;
-    }
-});
+// server.get('/service-worker.js', function (request, response, next) {
+//     if (config.serveFrontend) {
+//         response.sendFile(path.resolve(config.frontendPath + '/service-worker.js'));
+//     } else {
+//         next();
+//         return;
+//     }
+// });
 
-server.get('/favicon.png', function (request, response, next) {
-    if (config.serveFrontend) {
-        response.sendFile(path.resolve(config.frontendPath + '/favicon.png'));
-    } else {
-        next();
-        return;
-    }
-});
+// server.get('/webworker.js', function (request, response, next) {
+//     if (config.serveFrontend) {
+//         response.sendFile(path.resolve(config.frontendPath + '/webworker.js'));
+//     } else {
+//         next();
+//         return;
+//     }
+// });
+
+// server.get('/toplevel.js', function (request, response, next) {
+//     if (config.serveFrontend) {
+//         response.sendFile(path.resolve(config.frontendPath + '/toplevel.js'));
+//     } else {
+//         next();
+//         return;
+//     }
+// });
+
+// server.get('/logo.png', function (request, response, next) {
+//     if (config.serveFrontend) {
+//         response.sendFile(path.resolve(config.frontendPath + '/logo.png'));
+//     } else {
+//         next();
+//         return;
+//     }
+// });
+
+// server.get('/favicon.png', function (request, response, next) {
+//     if (config.serveFrontend) {
+//         response.sendFile(path.resolve(config.frontendPath + '/favicon.png'));
+//     } else {
+//         next();
+//         return;
+//     }
+// });
 
 server.get('/', function (request, response, next) {
     if (config.serveFrontend) {
-        response.sendFile(path.resolve(config.frontendPath + '/index.html'));
+        response.sendFile(path.resolve(config.frontendPath + '/index.html'), { "basepage": basepage });
     } else {
         next();
         return;
@@ -299,8 +346,31 @@ server.get('/', function (request, response, next) {
 });
 
 server.use(function (request, response, next) {
+    // path is no resource (does not end in js, json, html, png)
+    if (!request.path.match(/.*\.(js|json|html|png)$/g)) {
+        if (config.serveFrontend) {
+            // fallback to index.html
+            console.log("Forward to frontend, path: " + request.path);
+            response.sendFile(path.resolve(config.frontendPath + '/index.html'), { "basepage": basepage });
+            return;
+        } else {
+            next();
+            return;
+        }
+    }
+
+    // if already handled, skip
+    if (response.headersSent ) {
+        console.log("Headers already sent, skipping");
+        return;
+    } else {
+        console.log("Fallback to frontend, path: " + request.path);
+    }
     if (config.serveFrontend) {
-        response.sendFile(path.resolve(config.frontendPath + '/index.html'));
+        // fallback to index.html
+        // response.sendFile(path.resolve(config.frontendPath + '/index.html'),{"basepage": basepage});
+        // forward request to frontendPath
+        response.sendFile(path.resolve(config.frontendPath + request.path), { "basepage": basepage });
     } else {
         next();
         return;
@@ -308,28 +378,36 @@ server.use(function (request, response, next) {
 });
 
 
-const domain = 'v2202201167307177506.ultrasrv.de';
-const privateKey = fs.readFileSync(`/etc/letsencrypt/live/${domain}/privkey.pem`, 'utf8');
-const certificate = fs.readFileSync(`/etc/letsencrypt/live/${domain}/cert.pem`, 'utf8');
-const ca = fs.readFileSync(`/etc/letsencrypt/live/${domain}/chain.pem`, 'utf8');
 
-const credentials = {
-    key: privateKey,
-    cert: certificate,
-    ca: ca
-};
+
+server.listen(server.get('port'), () => { console.log("Listening on port " + port); console.log("The default address is http://localhost:" + port); });
+
+
+
+// const domain = 'v2202201167307177506.ultrasrv.de';
+// const privateKey = fs.readFileSync(`/etc/letsencrypt/live/${domain}/privkey.pem`, 'utf8');
+// const certificate = fs.readFileSync(`/etc/letsencrypt/live/${domain}/cert.pem`, 'utf8');
+// const ca = fs.readFileSync(`/etc/letsencrypt/live/${domain}/chain.pem`, 'utf8');
+// 
+// const credentials = {
+//     key: privateKey,
+//     cert: certificate,
+//     ca: ca
+// };
 
 
 // server.listen(config.port, function () {
 //     console.log('==== Server started ==== Port ' + config.port);
 // });
-const httpServer = http.createServer(server);
-const httpsServer = https.createServer(credentials, server);
+// const httpServer = http.createServer(server);
+// // const httpsServer = https.createServer(credentials, server);
+// 
+// // httpServer.listen(80, () => {
+// httpServer.listen(3033, () => {
+//     console.log('HTTP Server running on port 3033');
+// });
 
-httpServer.listen(80, () => {
-    console.log('HTTP Server running on port 80');
-});
-
-httpsServer.listen(443, () => {
-    console.log('HTTPS Server running on port 443');
-});
+// httpsServer.listen(443, () => {
+// httpsServer.listen(3034, () => {
+//     console.log('HTTPS Server running on port 3034');
+// });
